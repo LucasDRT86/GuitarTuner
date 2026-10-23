@@ -7,9 +7,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à publier (ex. v1.1). Laisser vide pour compiler sans publier."
+        required: false
+        default: ""
 
 permissions:
   contents: write
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -31,7 +39,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Renommer l'APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GuitarTuner-${{ github.ref_name }}.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GuitarTuner-${{ env.VERSION }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -39,12 +47,14 @@ jobs:
           path: GuitarTuner-*.apk
 
       - name: Publier dans la release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
         uses: softprops/action-gh-release@v2
         with:
-          name: Accordeur ${{ github.ref_name }}
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Accordeur ${{ env.VERSION }}
           body: |
             APK de l'accordeur pour guitare classique.
-            Téléchargez GuitarTuner-${{ github.ref_name }}.apk sur votre téléphone Android, puis ouvrez-le
+            Téléchargez GuitarTuner-${{ env.VERSION }}.apk sur votre téléphone Android, puis ouvrez-le
             (autorisez l'installation depuis des sources inconnues si Android le demande).
           files: GuitarTuner-*.apk
