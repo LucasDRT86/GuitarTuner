@@ -16,6 +16,17 @@ android {
         versionName = "1.1"
     }
 
+    // Clé de signature fixe, versionnée dans le dépôt : chaque build de la CI
+    // produit ainsi un APK signé pareil, qui peut s'installer par-dessus le précédent.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
