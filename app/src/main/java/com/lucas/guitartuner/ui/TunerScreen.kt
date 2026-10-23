@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,11 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,15 +49,21 @@ fun TunerScreen(viewModel: TunerViewModel, onStart: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("Accordeur guitare classique", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
             NoteDisplay(state)
-            Spacer(Modifier.height(16.dp))
-            CentsGauge(cents = state.cents, modifier = Modifier.fillMaxWidth().aspectRatio(2f))
             Spacer(Modifier.height(8.dp))
+            CentsGauge(cents = state.cents, modifier = Modifier.fillMaxWidth().aspectRatio(2.6f))
+            Spacer(Modifier.height(4.dp))
             TuningHint(state)
-            Spacer(Modifier.weight(1f))
-            StringSelector(selected = state.selectedString, active = state.targetString, onSelect = viewModel::selectString)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(8.dp))
+            GuitarView(
+                active = state.targetString,
+                highlight = if (state.cents == null) MaterialTheme.colorScheme.primary else tuneColor(state.cents),
+                onStringTap = { string -> viewModel.selectString(if (state.selectedString == string) null else string) },
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+            ModeLine(selected = state.selectedString, onAuto = { viewModel.selectString(null) })
+            Spacer(Modifier.height(12.dp))
             if (state.listening) {
                 OutlinedButton(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth()) { Text("Arrêter") }
             } else {
@@ -84,7 +89,7 @@ private fun NoteDisplay(state: TunerUiState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = state.targetString?.noteName ?: "—",
-            fontSize = 64.sp,
+            fontSize = 52.sp,
             fontWeight = FontWeight.Bold,
             color = if (state.cents == null) MaterialTheme.colorScheme.onBackground else color,
         )
@@ -152,27 +157,15 @@ private fun CentsGauge(cents: Float?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StringSelector(
-    selected: GuitarString?,
-    active: GuitarString?,
-    onSelect: (GuitarString?) -> Unit,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            GuitarString.entries.forEach { string ->
-                FilterChip(
-                    modifier = Modifier.weight(1f),
-                    selected = selected == string || (selected == null && active == string),
-                    onClick = { onSelect(if (selected == string) null else string) },
-                    label = { Text(string.name) },
-                )
-            }
-        }
+private fun ModeLine(selected: GuitarString?, onAuto: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(40.dp)) {
         Text(
-            text = if (selected == null) "Mode automatique : la corde est reconnue toute seule"
-            else "Corde ${selected.label} (${selected.noteName}) imposée · touchez-la à nouveau pour revenir en auto",
+            text = if (selected == null) "Mode auto · touchez une corde pour la choisir"
+            else "Corde ${selected.label} (${selected.noteName}) choisie",
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 4.dp),
         )
+        if (selected != null) {
+            TextButton(onClick = onAuto) { Text("Mode auto") }
+        }
     }
 }

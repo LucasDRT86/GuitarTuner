@@ -15,7 +15,9 @@ hauteur de la note jouée et indique l'écart en cents par rapport à la corde v
 - `audio/YinPitchDetector.kt` : algorithme YIN avec interpolation parabolique (précision < 1 cent sur signal de test).
 - `audio/GuitarString.kt` : les six cordes, calcul des cents, nom de la note.
 - `TunerViewModel.kt` : lissage par médiane glissante, mode automatique ou corde imposée.
-- `ui/TunerScreen.kt` : grande note, cadran à aiguille ±50 cents (vert à ±5 cents), consigne « tendez / détendez », sélecteur de corde.
+- `ui/TunerScreen.kt` : grande note, cadran à aiguille ±50 cents (vert à ±5 cents), consigne « tendez / détendez ».
+- `ui/GuitarView.kt` : guitare classique dessinée, la corde en cours d'accordage est mise en surbrillance ; toucher une corde la choisit.
+- `res/drawable*/ic_launcher*.xml` : icône de l'application (guitare sur fond dégradé), adaptative à partir d'Android 8.
 
 ## Tests
 `./gradlew test` lance les tests unitaires de l'algorithme (`app/src/test`).
