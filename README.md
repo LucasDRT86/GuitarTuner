@@ -19,3 +19,7 @@ hauteur de la note jouée et indique l'écart en cents par rapport à la corde v
 
 ## Tests
 `./gradlew test` lance les tests unitaires de l'algorithme (`app/src/test`).
+
+## Release
+Chaque tag `v*` (ex. `v1.0`) déclenche le workflow `.github/workflows/release.yml`,
+qui lance les tests, compile l'APK et le publie dans la release GitHub correspondante.
