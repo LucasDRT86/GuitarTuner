@@ -14,10 +14,10 @@ hauteur de la note jouée et indique l'écart en cents par rapport à la corde v
 - `audio/TunerEngine.kt` : lecture du micro avec `AudioRecord` (44,1 kHz, mono, blocs de 4096 échantillons recouverts à 50 %), seuil de silence.
 - `audio/YinPitchDetector.kt` : algorithme YIN avec interpolation parabolique (précision < 1 cent sur signal de test).
 - `audio/GuitarString.kt` : les six cordes, calcul des cents, nom de la note.
-- `TunerViewModel.kt` : lissage par médiane glissante, mode automatique ou corde imposée.
-- `ui/TunerScreen.kt` : grande note, cadran à aiguille ±50 cents (vert à ±5 cents), consigne « tendez / détendez ».
-- `ui/GuitarView.kt` : guitare classique dessinée, la corde en cours d'accordage est mise en surbrillance ; toucher une corde la choisit.
-- `res/drawable*/ic_launcher*.xml` : icône de l'application (guitare sur fond dégradé), adaptative à partir d'Android 8.
+- `TunerViewModel.kt` : lissage par médiane glissante, reconnaissance automatique de la corde (il faut 3 mesures concordantes pour changer de corde).
+- `ui/TunerScreen.kt` : en haut, la note, une barre de justesse ±50 cents (vert à ±5 cents) et la consigne « tendez / détendez ».
+- `ui/NeckView.kt` : manche de guitare sur les 3/4 de l'écran ; la corde en cours d'accordage s'illumine.
+- `res/drawable*/ic_launcher*.xml` : icône ronde, gros plan sur la rosace et la bouche avec les cordes, adaptative à partir d'Android 8.
 
 ## Tests
 `./gradlew test` lance les tests unitaires de l'algorithme (`app/src/test`).

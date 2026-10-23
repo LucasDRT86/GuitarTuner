@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.log2
 
 data class TunerUiState(
     val listening: Boolean = false,
@@ -19,11 +21,9 @@ data class TunerUiState(
     val detectedNote: String? = null,
     val targetString: GuitarString? = null,
     val cents: Float? = null,
-    /** Corde choisie à la main, ou null pour la détection automatique. */
-    val selectedString: GuitarString? = null,
     val error: String? = null,
 ) {
-    val inTune: Boolean get() = cents != null && kotlin.math.abs(cents) <= IN_TUNE_CENTS
+    val inTune: Boolean get() = cents != null && abs(cents) <= IN_TUNE_CENTS
 
     companion object {
         const val IN_TUNE_CENTS = 5f
@@ -38,6 +38,8 @@ class TunerViewModel : ViewModel() {
     private var job: Job? = null
     private val recent = ArrayDeque<Float>()
     private var silentFrames = 0
+    private var pendingString: GuitarString? = null
+    private var pendingCount = 0
 
     fun start() {
         if (job != null) return
@@ -56,11 +58,6 @@ class TunerViewModel : ViewModel() {
         _state.update { it.copy(listening = false) }
     }
 
-    fun selectString(string: GuitarString?) {
-        recent.clear()
-        _state.update { it.copy(selectedString = string) }
-    }
-
     private fun onFrequency(raw: Float?) {
         if (raw == null) {
             // On garde l'affichage un court instant pour éviter le clignotement.
@@ -72,13 +69,16 @@ class TunerViewModel : ViewModel() {
         }
         silentFrames = 0
 
+        // Nouvelle corde pincée (écart de plus d'un demi-ton) : on repart d'une médiane vide.
+        recent.lastOrNull()?.let { if (abs(1200 * log2(raw / it)) > 100) recent.clear() }
+
         // Médiane glissante pour lisser l'aiguille et ignorer les sauts d'octave isolés.
         recent.addLast(raw)
         if (recent.size > 5) recent.removeFirst()
         val frequency = recent.sorted()[recent.size / 2]
 
         _state.update { current ->
-            val target = current.selectedString ?: GuitarString.closestTo(frequency)
+            val target = stableTarget(current.targetString, GuitarString.closestTo(frequency))
             current.copy(
                 frequency = frequency,
                 detectedNote = noteNameFor(frequency),
@@ -86,6 +86,20 @@ class TunerViewModel : ViewModel() {
                 cents = target.centsFrom(frequency),
             )
         }
+    }
+
+    /** On ne change de corde visée qu'après 3 mesures consécutives d'accord, pour éviter les sauts. */
+    private fun stableTarget(current: GuitarString?, closest: GuitarString): GuitarString {
+        if (current == null || closest == current) {
+            pendingString = null
+            pendingCount = 0
+            return closest
+        }
+        if (closest == pendingString) pendingCount++ else {
+            pendingString = closest
+            pendingCount = 1
+        }
+        return if (pendingCount >= 3) closest.also { pendingString = null; pendingCount = 0 } else current
     }
 
     override fun onCleared() {

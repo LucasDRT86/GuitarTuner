@@ -4,19 +4,15 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,53 +21,47 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lucas.guitartuner.TunerUiState
 import com.lucas.guitartuner.TunerViewModel
-import com.lucas.guitartuner.audio.GuitarString
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 @Composable
 fun TunerScreen(viewModel: TunerViewModel, onStart: () -> Unit) {
     val state by viewModel.state.collectAsState()
+    val highlight by animateColorAsState(
+        if (state.cents == null) MaterialTheme.colorScheme.primary else tuneColor(state.cents),
+        label = "highlight",
+    )
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.safeDrawingPadding().padding(20.dp),
+            modifier = Modifier.safeDrawingPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Accordeur guitare classique", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            NoteDisplay(state)
-            Spacer(Modifier.height(8.dp))
-            CentsGauge(cents = state.cents, modifier = Modifier.fillMaxWidth().aspectRatio(2.6f))
-            Spacer(Modifier.height(4.dp))
-            TuningHint(state)
-            Spacer(Modifier.height(8.dp))
-            GuitarView(
-                active = state.targetString,
-                highlight = if (state.cents == null) MaterialTheme.colorScheme.primary else tuneColor(state.cents),
-                onStringTap = { string -> viewModel.selectString(if (state.selectedString == string) null else string) },
+            // Le quart supérieur : note, justesse, consigne
+            Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                Header(state, onStart = onStart, onStop = viewModel::stop)
+                NoteLine(state, highlight)
+                CentsBar(state.cents, highlight, Modifier.fillMaxWidth().height(22.dp))
+                TuningHint(state)
+            }
+            // Les trois quarts restants : le manche
+            NeckView(
+                active = state.targetString,
+                highlight = highlight,
+                modifier = Modifier.fillMaxWidth().weight(3f),
             )
-            ModeLine(selected = state.selectedString, onAuto = { viewModel.selectString(null) })
-            Spacer(Modifier.height(12.dp))
-            if (state.listening) {
-                OutlinedButton(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth()) { Text("Arrêter") }
-            } else {
-                Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Démarrer l'écoute") }
-            }
-            state.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
-            }
         }
     }
 }
@@ -84,26 +74,39 @@ private fun tuneColor(cents: Float?): Color = when {
 }
 
 @Composable
-private fun NoteDisplay(state: TunerUiState) {
-    val color by animateColorAsState(tuneColor(state.cents), label = "noteColor")
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun Header(state: TunerUiState, onStart: () -> Unit, onStop: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Accordeur", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        if (state.listening) {
+            TextButton(onClick = onStop) { Text("Pause") }
+        } else {
+            TextButton(onClick = onStart) { Text("Écouter") }
+        }
+    }
+    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+}
+
+@Composable
+private fun NoteLine(state: TunerUiState, highlight: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = state.targetString?.noteName ?: "—",
-            fontSize = 52.sp,
+            fontSize = 40.sp,
             fontWeight = FontWeight.Bold,
-            color = if (state.cents == null) MaterialTheme.colorScheme.onBackground else color,
+            color = if (state.cents == null) MaterialTheme.colorScheme.onBackground else highlight,
         )
         val detail = state.frequency?.let { f ->
-            "Corde ${state.targetString?.label} · entendu ${state.detectedNote} · ${"%.1f".format(f)} Hz"
-        } ?: if (state.listening) "Pincez une corde…" else "Appuyez sur « Démarrer l'écoute »"
+            "corde ${state.targetString?.label}\n${"%.1f".format(f)} Hz"
+        } ?: if (state.listening) "Pincez une corde…" else "Touchez « Écouter »"
         Text(detail, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 @Composable
 private fun TuningHint(state: TunerUiState) {
-    val cents = state.cents ?: return
+    val cents = state.cents
     val text = when {
+        cents == null -> " "
         state.inTune -> "Juste ✓"
         cents < 0 -> "Trop bas : tendez la corde (${cents.roundToInt()} cents)"
         else -> "Trop haut : détendez la corde (+${cents.roundToInt()} cents)"
@@ -111,61 +114,36 @@ private fun TuningHint(state: TunerUiState) {
     Text(text, color = tuneColor(cents), style = MaterialTheme.typography.titleMedium)
 }
 
-/** Demi-cadran de -50 à +50 cents, avec une aiguille animée. */
+/** Barre de -50 à +50 cents ; le curseur est au centre quand la corde est juste. */
 @Composable
-private fun CentsGauge(cents: Float?, modifier: Modifier = Modifier) {
-    val target = (cents ?: 0f).coerceIn(-50f, 50f)
-    val animated by animateFloatAsState(target, animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f), label = "needle")
-    val needleColor by animateColorAsState(tuneColor(cents), label = "needleColor")
-    val trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
+private fun CentsBar(cents: Float?, color: Color, modifier: Modifier = Modifier) {
+    val position by animateFloatAsState(
+        (cents ?: 0f).coerceIn(-50f, 50f),
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f),
+        label = "cursor",
+    )
+    val track = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+    val ticks = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)
 
-    Box(modifier) {
-        Canvas(Modifier.fillMaxSize()) {
-            val center = Offset(size.width / 2, size.height * 0.95f)
-            val radius = minOf(size.width / 2, size.height) * 0.9f
+    Canvas(modifier) {
+        val barHeight = size.height * 0.45f
+        val y = size.height / 2
+        fun xFor(c: Float) = size.width / 2 + c / 50f * (size.width / 2 - size.height / 2)
 
-            // Graduations tous les 10 cents, zone juste en vert
-            for (c in -50..50 step 5) {
-                val angle = Math.toRadians(90.0 - c * 1.6).toFloat() // ±50 cents → ±80°
-                val long = c % 10 == 0
-                val inner = radius * if (long) 0.82f else 0.88f
-                val dir = Offset(cos(angle), -sin(angle))
-                drawLine(
-                    color = if (abs(c) <= TunerUiState.IN_TUNE_CENTS) InTuneGreen else trackColor,
-                    start = center + dir * inner,
-                    end = center + dir * radius,
-                    strokeWidth = if (long) 5f else 3f,
-                    cap = StrokeCap.Round,
-                )
-            }
-            drawArc(
-                color = trackColor,
-                startAngle = 190f, sweepAngle = 160f, useCenter = false,
-                topLeft = center - Offset(radius, radius),
-                size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
-                style = Stroke(width = 3f),
-            )
-
-            if (cents != null) {
-                val angle = Math.toRadians(90.0 - animated * 1.6).toFloat()
-                val tip = center + Offset(cos(angle), -sin(angle)) * (radius * 0.95f)
-                drawLine(needleColor, center, tip, strokeWidth = 8f, cap = StrokeCap.Round)
-            }
-            drawCircle(needleColor, radius = 12f, center = center)
-        }
-    }
-}
-
-@Composable
-private fun ModeLine(selected: GuitarString?, onAuto: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(40.dp)) {
-        Text(
-            text = if (selected == null) "Mode auto · touchez une corde pour la choisir"
-            else "Corde ${selected.label} (${selected.noteName}) choisie",
-            style = MaterialTheme.typography.bodySmall,
+        drawRoundRect(track, Offset(0f, y - barHeight / 2), Size(size.width, barHeight), CornerRadius(barHeight / 2))
+        val inTuneLeft = xFor(-TunerUiState.IN_TUNE_CENTS)
+        drawRect(
+            InTuneGreen.copy(alpha = 0.45f),
+            Offset(inTuneLeft, y - barHeight / 2),
+            Size(xFor(TunerUiState.IN_TUNE_CENTS) - inTuneLeft, barHeight),
         )
-        if (selected != null) {
-            TextButton(onClick = onAuto) { Text("Mode auto") }
+        for (c in -50..50 step 10) {
+            val h = if (c == 0) size.height else barHeight * 1.3f
+            drawLine(ticks, Offset(xFor(c.toFloat()), y - h / 2), Offset(xFor(c.toFloat()), y + h / 2), strokeWidth = 2f)
+        }
+        if (cents != null) {
+            drawCircle(color, radius = size.height / 2, center = Offset(xFor(position), y))
+            drawCircle(Color.White, radius = size.height / 5, center = Offset(xFor(position), y))
         }
     }
 }
